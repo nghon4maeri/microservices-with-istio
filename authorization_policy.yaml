@@ -1,0 +1,8 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-all
+  namespace: default   # or default, depending on your target
+spec:
+  rules:
+  - {}   # empty rule = allow everything

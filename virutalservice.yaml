@@ -1,0 +1,30 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: house-price-gateway
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - istio-system/ocr-gateway
+  http:
+  - match:
+    - headers:
+        x-user-group:
+          exact: "A"
+    route:
+    - destination:
+        host: house-price.default.svc.cluster.local
+        port:
+          number: 80
+        subset: v1
+  - match:
+    - headers:
+        x-user-group:
+          exact: "B"
+    route:
+    - destination:
+        host: house-price.default.svc.cluster.local
+        port:
+          number: 80
+        subset: v2
