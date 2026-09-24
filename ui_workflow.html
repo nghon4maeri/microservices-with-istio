@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Istio Workflow Visualizer</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e2f; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #4facfe; }
+        .controls { margin: 20px 0; padding: 20px; background: #2a2a40; border-radius: 10px; display: flex; gap: 20px; align-items: center; }
+        button { background: #4facfe; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #00f2fe; }
+        
+        /* Workflow Diagram */
+        .diagram { display: flex; align-items: center; justify-content: space-between; width: 900px; margin-top: 50px; position: relative; }
+        
+        .node { width: 140px; height: 80px; background: #33334c; border: 2px solid #555; border-radius: 10px; display: flex; justify-content: center; align-items: center; text-align: center; font-weight: bold; z-index: 2; transition: all 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .node.active { border-color: #00f2fe; background: #4facfe; color: #000; box-shadow: 0 0 20px #00f2fe; transform: scale(1.1); }
+        
+        .column { display: flex; flex-direction: column; gap: 50px; }
+        
+        .arrow { flex-grow: 1; height: 4px; background: #555; position: relative; transition: 0.3s; margin: 0 10px; }
+        .arrow.active { background: #00f2fe; box-shadow: 0 0 10px #00f2fe; }
+        
+        /* Specific Arrows */
+        .arrow-v1 { position: absolute; left: 320px; top: 15px; width: 140px; transform: rotate(-25deg); transform-origin: left center;}
+        .arrow-v2 { position: absolute; left: 320px; top: 70px; width: 140px; transform: rotate(25deg); transform-origin: left center;}
+        .arrow-fs1 { position: absolute; left: 620px; top: -15px; width: 140px; transform: rotate(25deg); transform-origin: left center;}
+        .arrow-fs2 { position: absolute; left: 620px; top: 100px; width: 140px; transform: rotate(-25deg); transform-origin: left center;}
+
+        .log { margin-top: 40px; background: #111; padding: 15px; border-radius: 5px; width: 800px; height: 150px; overflow-y: auto; font-family: monospace; color: #00ff00; }
+        .result-box { margin-top: 20px; font-size: 24px; font-weight: bold; color: #ffeb3b; }
+    </style>
+</head>
+<body>
+
+    <h1>Istio A/B Testing Workflow</h1>
+    
+    <div class="controls">
+        <div>
+            <label>User Group Header:</label>
+            <select id="userGroup">
+                <option value="A">Group A (Route to v1)</option>
+                <option value="B">Group B (Route to v2)</option>
+            </select>
+        </div>
+        <button onclick="runWorkflow()">Gửi Request</button>
+    </div>
+
+    <div class="diagram" id="diagram">
+        <!-- Client -->
+        <div class="node" id="node-client">Client<br/>(User/Locust)</div>
+        
+        <div class="arrow" id="arrow-client-gw"></div>
+        
+        <!-- Gateway -->
+        <div class="node" id="node-gw" style="border-color: #b845ff;">Istio Ingress<br/>Gateway</div>
+        
+        <!-- Arrows to v1 and v2 -->
+        <div class="arrow arrow-v1" id="arrow-gw-v1"></div>
+        <div class="arrow arrow-v2" id="arrow-gw-v2"></div>
+
+        <!-- House Price versions -->
+        <div class="column" style="margin-left: 170px; margin-right: 170px;">
+            <div class="node" id="node-v1" style="border-color: #00e676;">House Price<br/>[v1]</div>
+            <div class="node" id="node-v2" style="border-color: #ffca28;">House Price<br/>[v2]</div>
+        </div>
+
+        <!-- Arrows to Feature Store -->
+        <div class="arrow arrow-fs1" id="arrow-v1-fs"></div>
+        <div class="arrow arrow-fs2" id="arrow-v2-fs"></div>
+
+        <!-- Feature Store -->
+        <div class="node" id="node-fs" style="border-color: #29b6f6;">Feature Store<br/>(DB)</div>
+    </div>
+
+    <div class="result-box" id="resultText"></div>
+
+    <div class="log" id="logBox">
+        Đang chờ request...
+    </div>
+
+    <script>
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        
+        function logMsg(msg) {
+            const logBox = document.getElementById('logBox');
+            logBox.innerHTML += `<br/>> [${new Date().toLocaleTimeString()}] ${msg}`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function resetAll() {
+            document.querySelectorAll('.node, .arrow').forEach(el => el.classList.remove('active'));
+            document.getElementById('resultText').innerText = '';
+        }
+
+        async function activate(id, msg) {
+            document.getElementById(id).classList.add('active');
+            if (msg) logMsg(msg);
+            await sleep(800);
+        }
+
+        async function deactivate(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        async function runWorkflow() {
+            resetAll();
+            document.getElementById('logBox').innerHTML = 'Đang bắt đầu tạo Request...';
+            
+            const group = document.getElementById('userGroup').value;
+            
+            await activate('node-client', 'Client gửi POST /predict?item_id=2');
+            await activate('arrow-client-gw', '');
+            
+            await activate('node-gw', 'Request chạm vào cổng Istio Ingress Gateway (Port 80)');
+            await deactivate('node-client');
+            await deactivate('arrow-client-gw');
+            
+            if (group === 'A') {
+                logMsg('Istio VirtualService đọc thấy Header "x-user-group: A"');
+                await activate('arrow-gw-v1', 'Định tuyến traffic tới tập hợp: v1');
+                await activate('node-v1', 'House Price [v1] nhận request.');
+                await deactivate('node-gw');
+                await deactivate('arrow-gw-v1');
+                
+                await activate('arrow-v1-fs', 'House Price [v1] gọi nội bộ sang Feature Store');
+            } else {
+                logMsg('Istio VirtualService đọc thấy Header "x-user-group: B"');
+                await activate('arrow-gw-v2', 'Định tuyến traffic tới tập hợp: v2');
+                await activate('node-v2', 'House Price [v2] nhận request.');
+                await deactivate('node-gw');
+                await deactivate('arrow-gw-v2');
+                
+                await activate('arrow-v2-fs', 'House Price [v2] gọi nội bộ sang Feature Store');
+            }
+            
+            await activate('node-fs', 'Feature Store lấy dữ liệu căn nhà từ train.csv và trả về JSON.');
+            if (group === 'A') await deactivate('arrow-v1-fs');
+            else await deactivate('arrow-v2-fs');
+            
+            if (group === 'A') await deactivate('node-v1');
+            else await deactivate('node-v2');
+            
+            logMsg('House Price đẩy dữ liệu vào mô hình Machine Learning clf.predict()...');
+            await sleep(800);
+            
+            logMsg('Bắn Custom Metrics (Random Likes) ra cho Prometheus...');
+            await deactivate('node-fs');
+            
+            const price = (Math.random() * 100000 + 150000).toFixed(2);
+            document.getElementById('resultText').innerText = `Mức giá dự đoán: $${price}`;
+            logMsg(`Trả Response cuối cùng về cho Client: {"Price": ${price}}`);
+            
+            await activate('node-client', 'Flow hoàn tất thành công!');
+            await sleep(1000);
+            await deactivate('node-client');
+        }
+    </script>
+</body>
+</html>

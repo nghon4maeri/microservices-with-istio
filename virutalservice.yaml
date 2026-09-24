@@ -12,6 +12,15 @@ spec:
     - headers:
         x-user-group:
           exact: "A"
+    corsPolicy:
+      allowOrigins:
+      - regex: ".*"
+      allowMethods:
+      - POST
+      - GET
+      - OPTIONS
+      allowHeaders:
+      - "*"
     route:
     - destination:
         host: house-price.default.svc.cluster.local
@@ -22,6 +31,15 @@ spec:
     - headers:
         x-user-group:
           exact: "B"
+    corsPolicy:
+      allowOrigins:
+      - regex: ".*"
+      allowMethods:
+      - POST
+      - GET
+      - OPTIONS
+      allowHeaders:
+      - "*"
     route:
     - destination:
         host: house-price.default.svc.cluster.local

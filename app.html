@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Price AI Predictor</title>
+    <style>
+        :root { --primary: #00f2fe; --bg: #1e1e2f; --card: #2a2a40; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: white; display: flex; justify-content: center; padding: 50px; }
+        .container { background-color: var(--card); padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 500px; }
+        h1 { text-align: center; color: var(--primary); margin-top: 0; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #555; background: #111; color: white; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border-radius: 5px; border: none; background: #4facfe; background: linear-gradient(to right, #4facfe, #00f2fe); color: black; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4); }
+        .result { margin-top: 30px; padding: 20px; background: #111; border-radius: 8px; display: none; border-left: 5px solid var(--primary); }
+        .price { font-size: 32px; font-weight: bold; color: #00e676; margin: 10px 0; }
+        .info { font-size: 14px; color: #aaa; margin-top: 15px; }
+        .error { color: #ff5252; margin-top: 20px; font-weight: bold; text-align: center; display: none;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏠 Trợ Lý Giá Nhà AI</h1>
+    <p style="text-align: center; color: #aaa; margin-bottom: 30px;">
+        Hệ thống gọi API thật qua Istio Gateway
+    </p>
+
+    <div class="form-group">
+        <label>Mã căn nhà (Item ID):</label>
+        <input type="number" id="itemId" value="2" min="1">
+    </div>
+
+    <div class="form-group">
+        <label>Tập khách hàng (x-user-group):</label>
+        <select id="userGroup">
+            <option value="A">Nhóm A (Sẽ định tuyến vào bản v1)</option>
+            <option value="B">Nhóm B (Sẽ định tuyến vào bản v2)</option>
+        </select>
+    </div>
+
+    <button onclick="makePrediction()" id="btnPredict">Dự đoán mức giá!</button>
+
+    <div class="error" id="errorBox"></div>
+
+    <div class="result" id="resultBox">
+        <div>💰 Mức giá dự đoán:</div>
+        <div class="price" id="priceValue">$0.00</div>
+        <div class="info" id="routingInfo"></div>
+    </div>
+</div>
+
+<script>
+    async function makePrediction() {
+        const btn = document.getElementById('btnPredict');
+        const errorBox = document.getElementById('errorBox');
+        const resultBox = document.getElementById('resultBox');
+        
+        const itemId = document.getElementById('itemId').value;
+        const userGroup = document.getElementById('userGroup').value;
+
+        btn.innerText = 'Đang xử lý...';
+        btn.disabled = true;
+        errorBox.style.display = 'none';
+        resultBox.style.display = 'none';
+
+        try {
+            const startTime = performance.now();
+            
+            // Gửi HTTP POST request vào Istio Ingress Gateway
+            const response = await fetch(`http://localhost:8080/predict?item_id=${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'x-user-group': userGroup
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi Server: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const latency = ((performance.now() - startTime) / 1000).toFixed(2);
+            
+            document.getElementById('priceValue').innerText = '$' + data.Price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            let version = userGroup === 'A' ? 'v1' : 'v2';
+            document.getElementById('routingInfo').innerHTML = 
+                `⏱️ Thời gian phản hồi: <b>${latency}s</b><br/><br/>
+                 💡 Request của bạn đã được Istio kiểm tra Header và định tuyến tới pod <b>House Price ${version}</b>.`;
+            
+            resultBox.style.display = 'block';
+
+        } catch (error) {
+            console.error('Fetch error:', error);
+            errorBox.innerHTML = `
+                Lỗi kết nối!<br/><br/>
+                <span style="font-size: 13px; color: #ccc;">
+                * Đảm bảo bạn đã chạy lệnh: <br/><code>kubectl port-forward -n istio-system svc/istio-ingress 8080:80</code><br/><br/>
+                * Nếu báo lỗi CORS, hãy mở trình duyệt tắt bảo mật hoặc chạy ứng dụng qua công cụ proxy.
+                </span>`;
+            errorBox.style.display = 'block';
+        } finally {
+            btn.innerText = 'Dự đoán mức giá!';
+            btn.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
