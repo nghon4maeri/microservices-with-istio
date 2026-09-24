@@ -1,0 +1,4 @@
+image:
+  repository: auth-service
+  tag: "latest"
+  pullPolicy: IfNotPresent

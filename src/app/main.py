@@ -50,7 +50,7 @@ def predict(item_id: str, x_user_group: Optional[str] = Header(None)):
     logger.info("Make predictions...")
 
     data = requests.get(
-        "http://feature-store.default.svc.cluster.local/features?item_id=1"
+        f"http://feature-store.default.svc.cluster.local/features?item_id={item_id}"
     ).json()
     # Convert data to pandas DataFrame and make predictions
     price = clf.predict(format_input_data(data))[0]
@@ -62,6 +62,20 @@ def predict(item_id: str, x_user_group: Optional[str] = Header(None)):
     is_like = random.choices([0, 1], weights=(50, 50))[0]
     if is_like:
         counter.add(is_like, label)
+
+    # Publish to RabbitMQ
+    try:
+        import pika
+        import json
+        rabbitmq_host = os.environ.get("RABBITMQ_HOST", "rabbitmq")
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        channel = connection.channel()
+        channel.queue_declare(queue='price_notifications')
+        msg = json.dumps({"item_id": item_id, "price": price})
+        channel.basic_publish(exchange='', routing_key='price_notifications', body=msg)
+        connection.close()
+    except Exception as e:
+        logger.error(f"Failed to publish to RabbitMQ: {e}")
 
     # Return the result
     return HousePrediction(Price=price)

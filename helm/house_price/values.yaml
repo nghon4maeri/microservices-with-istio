@@ -1,6 +1,4 @@
 image:
-  # repository: quandvrobusto/house-price-prediction-api
-  # tag: "0.0.1"
-  repository: nguyenpnx/house-price
-  tag: "0.0.1"
-  pullPolicy: Always
+  repository: house-price-pika
+  tag: "latest"
+  pullPolicy: IfNotPresent

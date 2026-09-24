@@ -1,6 +1,4 @@
 image:
-  # repository: quandvrobusto/house-price-prediction-api
-  # tag: "0.0.1"
-  repository: nguyenpnx/feature-store
-  tag: "0.0.2"
-  pullPolicy: Always
+  repository: feature-store-redis
+  tag: "latest"
+  pullPolicy: IfNotPresent

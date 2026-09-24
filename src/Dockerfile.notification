@@ -1,0 +1,6 @@
+FROM python:3.10-slim
+WORKDIR /app
+COPY notification/requirements.txt .
+RUN pip install -r requirements.txt
+COPY notification/ .
+CMD ["python", "main.py", "-u"]

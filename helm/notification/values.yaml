@@ -1,0 +1,4 @@
+image:
+  repository: notification-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
